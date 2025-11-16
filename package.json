@@ -1,0 +1,41 @@
+{
+  "name": "disaster-relief-ai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:server": "node backend/index.js",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "i18next": "^23.10.1",
+    "idb": "^8.0.2",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.462.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^13.5.0",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^6.26.2",
+    "tesseract.js": "^5.1.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "@types/leaflet": "^1.9.12",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8"
+  }
+}
