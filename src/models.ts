@@ -30,8 +30,18 @@ export interface Request {
   category: Category
   urgency: number // 1-5
   location?: GeoPoint
+  locationLabel?: string
   status: RequestStatus
   createdAt: number
+  aiSummary?: string
+  aiNeeds?: string[]
+  aiReason?: string
+  aiUsedModel?: boolean
+  aiDisasterType?: string
+  aiAssignedNgoId?: string
+  synced?: boolean
+  victimName?: string
+  contact?: string
 }
 
 export interface Resource {

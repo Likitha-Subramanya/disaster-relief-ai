@@ -21,10 +21,17 @@ export default function NgoLogin() {
   }
 
   return (
-    <div className="container max-w-xl py-10 md:py-16">
-      <div className="card p-6 md:p-8">
-        <h1 className="text-2xl font-semibold mb-2 text-center">NGO Sign In</h1>
-        <p className="text-sm opacity-80 mb-4 text-center">Log in to view tasks near you and update progress.</p>
+    <div className="min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 flex items-center justify-center px-4 py-12">
+      <div className="bg-white border border-blue-100 rounded-2xl p-6 md:p-8 shadow-card w-full max-w-lg">
+        <button
+          type="button"
+          className="text-xs text-slate-500 underline mb-3"
+          onClick={() => navigate('/')}
+        >
+          ← Back to home
+        </button>
+        <h1 className="text-2xl font-semibold mb-2 text-center text-slate-800">NGO Sign In</h1>
+        <p className="text-sm text-slate-500 mb-4 text-center">Log in to view tasks near you and update progress.</p>
         <form className="space-y-4" onSubmit={handleSubmit} autoComplete="off">
           <div className="space-y-1 text-sm">
             <label className="font-medium">Email</label>
@@ -48,6 +55,7 @@ export default function NgoLogin() {
             />
           </div>
           {error && <div className="text-xs text-danger">{error}</div>}
+          <div className="text-xs text-right text-slate-500">Forgot password? <span className="italic">Contact admin in this demo</span></div>
           <button type="submit" className="button-primary w-full mt-2">Sign In</button>
         </form>
         <div className="text-xs opacity-80 mt-4 text-center">

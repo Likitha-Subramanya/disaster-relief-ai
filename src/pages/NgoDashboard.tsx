@@ -25,7 +25,6 @@ export default function NgoDashboard() {
     ngo?.serviceType ? ngo.serviceType.split(',').map(s => s.trim()).filter(Boolean) : []
   )
   const [branchesText, setBranchesText] = useState(ngo?.branches?.join('\n') || '')
-  const [theme, setTheme] = useState<'dark' | 'light'>(ngo?.theme || 'dark')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [oldPhone, setOldPhone] = useState('')
@@ -132,7 +131,7 @@ export default function NgoDashboard() {
         .split('\n')
         .map(b => b.trim())
         .filter(Boolean),
-      theme,
+      theme: 'light',
       password: nextPassword,
     }
 
@@ -154,64 +153,58 @@ export default function NgoDashboard() {
   const done = requests.filter(r => r.status === 'completed')
 
   const serviceLabel = ngo.serviceType
-  const containerClasses =
-    theme === 'light'
-      ? 'container py-8 md:py-10 bg-slate-50 text-slate-900'
-      : 'container py-8 md:py-10 bg-slate-950 text-slate-50'
-
-  const settingsCardClasses =
-    theme === 'light'
-      ? 'bg-white text-slate-900 border border-slate-200 rounded-xl w-full max-w-3xl p-6 text-sm max-h-[80vh] overflow-y-auto shadow-xl'
-      : 'bg-slate-900 text-slate-50 border border-white/15 rounded-xl w-full max-w-3xl p-6 text-sm max-h-[80vh] overflow-y-auto shadow-xl'
+  const containerClasses = 'min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 py-10 px-4'
+  const settingsCardClasses = 'bg-white text-slate-700 border border-blue-100 rounded-2xl w-full max-w-3xl p-6 text-sm max-h-[80vh] overflow-y-auto shadow-card'
 
   return (
     <div className={containerClasses}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
         <div>
-          <h1 className="text-2xl font-semibold">NGO Task Dashboard</h1>
-          <p className="text-sm opacity-80">{ngo.name} — {serviceLabel} in {ngo.location}</p>
+          <p className="text-xs font-semibold tracking-[0.3em] text-slate-400 uppercase">Relief control room</p>
+          <h1 className="text-3xl font-semibold text-slate-800">NGO Task Dashboard</h1>
+          <p className="text-sm text-slate-500">{ngo.name} — {serviceLabel} in {ngo.location}</p>
         </div>
         <button
-          className="px-3 py-1.5 rounded-full border border-white/15 text-xs"
+          className="px-3 py-1.5 rounded-full border border-blue-100 bg-white text-xs text-slate-600"
           onClick={() => setShowSettings(true)}
         >
           Settings
         </button>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <section className="card p-4">
+      <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
           <h2 className="text-lg font-semibold mb-2">To Do</h2>
           {todo.length === 0 ? (
-            <p className="text-sm opacity-75">No pending tasks yet. New victim requests will appear here.</p>
+            <p className="text-sm text-slate-500">No pending tasks yet. New victim requests will appear here.</p>
           ) : (
             <ul className="space-y-3 text-sm">
               {todo.map(r => (
-                <li key={r.id} className="border border-white/10 rounded-lg px-3 py-2">
+                <li key={r.id} className="border border-blue-50 rounded-xl px-4 py-3 bg-white/70">
                   <div className="flex justify-between items-center mb-1">
                     <div>
                       <div className="font-medium">{r.victimName}</div>
-                      <div className="text-[11px] opacity-70">{r.disasterType.toUpperCase()}</div>
+                      <div className="text-[11px] text-slate-500">{r.disasterType.toUpperCase()}</div>
                       {r.contact && (
-                        <div className="text-[11px] opacity-70">Contact: {r.contact}</div>
+                        <div className="text-[11px] text-slate-500">Contact: {r.contact}</div>
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <button className="px-2 py-1 text-xs rounded-full border border-white/20" onClick={() => openMap(r)}>
+                      <button className="px-2 py-1 text-xs rounded-full border border-blue-100 text-slate-600" onClick={() => openMap(r)}>
                         Map
                       </button>
-                      <button className="px-2 py-1 text-xs rounded-full border border-white/20" onClick={() => handleContact(r)}>
+                      <button className="px-2 py-1 text-xs rounded-full border border-blue-100 text-slate-600" onClick={() => handleContact(r)}>
                         Contact
                       </button>
                     </div>
                   </div>
-                  <div className="text-xs opacity-80 mb-1">{r.location}</div>
+                  <div className="text-xs text-slate-500 mb-1">{r.location}</div>
                   <div className="flex gap-2 flex-wrap text-[11px] mt-1">
                     <span>Status:</span>
                     {(['to_do', 'in_progress', 'reached', 'completed'] as RequestStatus[]).map(st => (
                       <button
                         key={st}
-                        className={`px-2 py-0.5 rounded-full border ${r.status === st ? 'border-primary bg-primary/20' : 'border-white/15'}`}
+                        className={`px-2 py-0.5 rounded-full border ${r.status === st ? 'border-primary bg-primary/20 text-primary' : 'border-slate-100 text-slate-500'}`}
                         onClick={() => handleStatusChange(r.id, st)}
                       >
                         {st.replace('_', ' ')}
@@ -224,20 +217,20 @@ export default function NgoDashboard() {
           )}
         </section>
 
-        <section className="card p-4">
+        <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
           <h2 className="text-lg font-semibold mb-2">Done</h2>
           {done.length === 0 ? (
-            <p className="text-sm opacity-75">Completed tasks will move here automatically.</p>
+            <p className="text-sm text-slate-500">Completed tasks will move here automatically.</p>
           ) : (
             <ul className="space-y-3 text-sm">
               {done.map(r => (
-                <li key={r.id} className="border border-white/10 rounded-lg px-3 py-2">
+                <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
                   <div className="flex justify-between items-center mb-1">
                     <div className="font-medium">{r.victimName}</div>
-                    <span className="text-[11px] opacity-70">{r.disasterType.toUpperCase()}</span>
+                    <span className="text-[11px] text-slate-500">{r.disasterType.toUpperCase()}</span>
                   </div>
-                  <div className="text-xs opacity-80">{r.location}</div>
-                  <div className="text-[11px] opacity-60 mt-1">Completed — {new Date(r.createdAt).toLocaleString()}</div>
+                  <div className="text-xs text-slate-500">{r.location}</div>
+                  <div className="text-[11px] text-slate-400 mt-1">Completed — {new Date(r.createdAt).toLocaleString()}</div>
                 </li>
               ))}
             </ul>
@@ -246,19 +239,18 @@ export default function NgoDashboard() {
       </div>
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div
             className={settingsCardClasses}
             onClick={e => e.stopPropagation()}
           >
             <h2 className="text-lg font-semibold mb-1">NGO Settings</h2>
-            <p className="text-[11px] opacity-70 mb-3">Manage your profile, services, appearance, and security.</p>
+            <p className="text-[11px] text-slate-500 mb-3">Manage your profile, services, and security.</p>
             <form className="flex gap-4" onSubmit={handleSaveSettings}>
-              <aside className="w-32 flex flex-col gap-1 text-xs border-r border-white/10 pr-3">
+              <aside className="w-32 flex flex-col gap-1 text-xs border-r border-blue-50 pr-3">
                 {[
                   { id: 'profile', label: 'Profile' },
                   { id: 'services', label: 'Services' },
-                  { id: 'appearance', label: 'Appearance' },
                   { id: 'security', label: 'Security' },
                   { id: 'account', label: 'Account' },
                 ].map(item => (
@@ -267,8 +259,8 @@ export default function NgoDashboard() {
                     type="button"
                     className={`text-left px-2 py-1 rounded-md border ${
                       settingsSection === item.id
-                        ? 'border-primary bg-primary/20'
-                        : 'border-transparent hover:border-white/15'
+                        ? 'border-primary bg-primary/20 text-primary'
+                        : 'border-transparent hover:border-blue-100'
                     }`}
                     onClick={() => setSettingsSection(item.id as any)}
                   >
@@ -355,34 +347,6 @@ export default function NgoDashboard() {
                         />
                       </div>
                     </>
-                  )}
-
-                  {settingsSection === 'appearance' && (
-                    <div className="space-y-2">
-                      <div className="space-y-1">
-                        <label className="font-medium">Theme</label>
-                        <div className="flex gap-2 text-xs">
-                          <button
-                            type="button"
-                            className={`px-3 py-1 rounded-full border ${
-                              theme === 'dark' ? 'border-primary bg-primary/20' : 'border-white/20'
-                            }`}
-                            onClick={() => setTheme('dark')}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            type="button"
-                            className={`px-3 py-1 rounded-full border ${
-                              theme === 'light' ? 'border-primary bg-primary/20' : 'border-white/20'
-                            }`}
-                            onClick={() => setTheme('light')}
-                          >
-                            Light
-                          </button>
-                        </div>
-                      </div>
-                    </div>
                   )}
 
                   {settingsSection === 'security' && (

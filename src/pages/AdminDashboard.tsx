@@ -41,11 +41,14 @@ export default function AdminDashboard() {
 
   if (!admin) {
     return (
-      <div className="container py-10">
-        <div className="card p-6 max-w-xl">
-          <h1 className="text-xl font-semibold mb-2">Admin Dashboard</h1>
-          <p className="text-sm opacity-80 mb-4">Please sign in as Admin to monitor NGOs and operations.</p>
-          <button className="button-primary" onClick={() => navigate('/admin/login')}>Go to Admin Sign In</button>
+      <div className="min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 flex items-center justify-center px-4 py-10">
+        <div className="bg-white border border-blue-100 rounded-2xl p-6 md:p-8 shadow-card max-w-xl w-full text-center space-y-4">
+          <p className="text-xs font-semibold tracking-[0.3em] text-slate-400 uppercase">Admin console</p>
+          <h1 className="text-2xl font-semibold text-slate-800">Admin Dashboard</h1>
+          <p className="text-sm text-slate-500">Please sign in as Admin to monitor NGOs and operations.</p>
+          <button className="button-primary w-full" onClick={() => navigate('/admin/login')}>
+            Go to Admin Sign In
+          </button>
         </div>
       </div>
     )
@@ -98,16 +101,17 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container py-8 md:py-10">
-      <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 py-10 px-4">
+      <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto">
         <div>
-          <h1 className="text-2xl font-semibold">Admin Control Center</h1>
-          <p className="text-sm opacity-80">Welcome, {admin.name}. System Admins: {admins.length}</p>
+          <p className="text-xs font-semibold tracking-[0.3em] text-slate-400 uppercase">Command & control</p>
+          <h1 className="text-3xl font-semibold text-slate-800">Admin Control Center</h1>
+          <p className="text-sm text-slate-500">Welcome, {admin.name}. System Admins: {admins.length}</p>
         </div>
-        <button className="px-3 py-1.5 rounded-full border border-white/15 text-xs" onClick={() => navigate('/')}>Home</button>
+        <button className="px-3 py-1.5 rounded-full border border-blue-100 bg-white text-xs text-slate-600" onClick={() => navigate('/')}>Home</button>
       </div>
 
-      <div className="flex gap-2 text-xs mb-4">
+      <div className="flex gap-2 text-xs mb-6 max-w-6xl mx-auto">
         {[
           { id: 'overview', label: 'Overview' },
           { id: 'ngos', label: 'NGOs' },
@@ -117,7 +121,7 @@ export default function AdminDashboard() {
           <button
             key={item.id}
             className={`px-3 py-1.5 rounded-full border ${
-              tab === item.id ? 'border-primary bg-primary/20' : 'border-white/15'
+              tab === item.id ? 'border-primary bg-primary/20 text-primary' : 'border-slate-100 text-slate-500'
             }`}
             onClick={() => setTab(item.id as any)}
           >
@@ -127,8 +131,8 @@ export default function AdminDashboard() {
       </div>
 
       {tab === 'overview' && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <section className="card p-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
             <h2 className="text-lg font-semibold mb-2">Summary</h2>
             <ul className="text-sm space-y-1">
               <li>Total NGOs: {ngos.length}</li>
@@ -137,14 +141,14 @@ export default function AdminDashboard() {
               <li>Completed requests: {completedTasks.length}</li>
             </ul>
           </section>
-          <section className="card p-4 md:col-span-1 lg:col-span-2">
+          <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card md:col-span-1 lg:col-span-2">
             <h2 className="text-lg font-semibold mb-2">Recent Victim Requests</h2>
             {victims.length === 0 ? (
-              <p className="text-sm opacity-75">As victims submit requests, they will appear here.</p>
+              <p className="text-sm text-slate-500">As victims submit requests, they will appear here.</p>
             ) : (
               <div className="max-h-64 overflow-auto text-sm">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-white/5">
+                  <thead className="bg-blue-50 text-slate-600">
                     <tr>
                       <th className="px-2 py-1">Name</th>
                       <th className="px-2 py-1">Disaster</th>
@@ -157,7 +161,7 @@ export default function AdminDashboard() {
                     {victims.map(v => {
                       const aNgo = getNgoById(v.assignedNgoId)
                       return (
-                        <tr key={v.id} className="border-b border-white/10">
+                        <tr key={v.id} className="border-b border-blue-50">
                           <td className="px-2 py-1">{v.victimName}</td>
                           <td className="px-2 py-1 text-[11px]">{v.disasterType.toUpperCase()}</td>
                           <td className="px-2 py-1 text-[11px] capitalize">{v.status.replace('_', ' ')}</td>
@@ -175,14 +179,14 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'ngos' && (
-        <section className="card p-4">
+        <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card max-w-6xl mx-auto">
           <h2 className="text-lg font-semibold mb-3">NGOs</h2>
           {ngos.length === 0 ? (
-            <p className="text-sm opacity-75">No NGOs registered yet.</p>
+            <p className="text-sm text-slate-500">No NGOs registered yet.</p>
           ) : (
             <div className="max-h-[420px] overflow-auto text-xs">
               <table className="w-full text-left">
-                <thead className="bg-white/5">
+                <thead className="bg-blue-50 text-slate-600">
                   <tr>
                     <th className="px-2 py-1">Name</th>
                     <th className="px-2 py-1">Email</th>
@@ -194,7 +198,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {ngos.map(n => (
-                    <tr key={n.id} className="border-b border-white/10">
+                    <tr key={n.id} className="border-b border-blue-50">
                       <td className="px-2 py-1 text-sm">{n.name}</td>
                       <td className="px-2 py-1">{n.email}</td>
                       <td className="px-2 py-1 text-[11px]">{n.location}</td>
@@ -202,7 +206,7 @@ export default function AdminDashboard() {
                       <td className="px-2 py-1 text-[11px]">{n.phone}</td>
                       <td className="px-2 py-1 text-right">
                         <button
-                          className="px-2 py-0.5 rounded-full border border-red-400/70 text-[11px] text-red-300"
+                          className="px-2 py-0.5 rounded-full border border-danger/40 text-[11px] text-danger"
                           onClick={() => handleDeleteNgo(n.id)}
                         >
                           Delete
@@ -218,7 +222,7 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'victims' && (
-        <section className="card p-4">
+        <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Victim Requests</h2>
             <div className="flex items-center gap-2 text-xs">
@@ -237,11 +241,11 @@ export default function AdminDashboard() {
             </div>
           </div>
           {victims.length === 0 ? (
-            <p className="text-sm opacity-75">No victim requests yet.</p>
+            <p className="text-sm text-slate-500">No victim requests yet.</p>
           ) : (
             <div className="max-h-[420px] overflow-auto text-xs">
               <table className="w-full text-left">
-                <thead className="bg-white/5">
+                <thead className="bg-blue-50 text-slate-600">
                   <tr>
                     <th className="px-2 py-1">Name</th>
                     <th className="px-2 py-1">Location</th>
@@ -261,7 +265,7 @@ export default function AdminDashboard() {
                     .map(v => {
                       const aNgo = getNgoById(v.assignedNgoId)
                       return (
-                        <tr key={v.id} className="border-b border-white/10">
+                        <tr key={v.id} className="border-b border-blue-50">
                           <td className="px-2 py-1 text-sm">{v.victimName}</td>
                           <td className="px-2 py-1 text-[11px]">{v.location}</td>
                           <td className="px-2 py-1 text-[11px]">{v.disasterType.toUpperCase()}</td>
@@ -290,8 +294,8 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'manageNgos' && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <section className="card p-4">
+        <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+          <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
             <h2 className="text-lg font-semibold mb-2">Add new NGO</h2>
             <form className="space-y-2 text-sm" onSubmit={handleAddNgo}>
               <div className="space-y-1">
@@ -327,14 +331,14 @@ export default function AdminDashboard() {
               <button type="submit" className="button-primary w-full mt-1 text-xs">Add NGO</button>
             </form>
           </section>
-          <section className="card p-4">
+          <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
             <h2 className="text-lg font-semibold mb-2">Existing NGOs</h2>
             {ngos.length === 0 ? (
-              <p className="text-sm opacity-75">No NGOs registered yet.</p>
+              <p className="text-sm text-slate-500">No NGOs registered yet.</p>
             ) : (
               <div className="max-h-72 overflow-auto text-xs">
                 <table className="w-full text-left">
-                  <thead className="bg-white/5">
+                  <thead className="bg-blue-50 text-slate-600">
                     <tr>
                       <th className="px-2 py-1">Name</th>
                       <th className="px-2 py-1">Email</th>
@@ -343,12 +347,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {ngos.map(n => (
-                      <tr key={n.id} className="border-b border-white/10">
+                      <tr key={n.id} className="border-b border-blue-50">
                         <td className="px-2 py-1 text-sm">{n.name}</td>
                         <td className="px-2 py-1">{n.email}</td>
                         <td className="px-2 py-1 text-right">
                           <button
-                            className="px-2 py-0.5 rounded-full border border-red-400/70 text-[11px] text-red-300"
+                            className="px-2 py-0.5 rounded-full border border-danger/40 text-[11px] text-danger"
                             onClick={() => handleDeleteNgo(n.id)}
                           >
                             Delete

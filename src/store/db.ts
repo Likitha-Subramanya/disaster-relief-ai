@@ -75,3 +75,17 @@ export async function setResourceAvailability(id: string, availabilityStatus: Re
   res.availabilityStatus = availabilityStatus
   await db.put('resources', res)
 }
+
+export async function getUnsyncedRequests(): Promise<Request[]> {
+  const db = await getDb()
+  const all = await db.getAll('requests')
+  return all.filter(r => !r.synced)
+}
+
+export async function markRequestSynced(id: string) {
+  const db = await getDb()
+  const req = await db.get('requests', id)
+  if (!req) return
+  req.synced = true
+  await db.put('requests', req)
+}

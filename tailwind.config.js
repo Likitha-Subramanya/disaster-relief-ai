@@ -8,19 +8,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0b1020',
-        foreground: '#e6e9f2',
+        background: '#fef8ff', // baby pink tint
+        foreground: '#0f172a',
         primary: {
-          DEFAULT: '#4f46e5',
-          foreground: '#ffffff',
+          DEFAULT: '#7dd3fc', // sky blue
+          foreground: '#0f172a',
         },
-        muted: '#121933',
-        accent: '#10b981',
-        warning: '#f59e0b',
-        danger: '#ef4444',
+        secondary: '#fbcfe8',
+        muted: '#ffffff',
+        accent: '#f472b6',
+        warning: '#fbbf24',
+        danger: '#f87171',
       },
       boxShadow: {
-        card: '0 6px 30px rgba(0,0,0,0.25)'
+        card: '0 12px 30px rgba(15, 23, 42, 0.08)'
       }
     },
   },

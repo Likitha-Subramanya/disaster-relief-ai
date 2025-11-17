@@ -90,7 +90,7 @@ function normalize(str: string) {
   return str.toLowerCase()
 }
 
-function chooseAutoNgoForDisaster(disasterType: DisasterType): string | undefined {
+function chooseAutoNgoForDisaster(disasterType: DisasterType, victimLocation?: string): string | undefined {
   const ngos = getNgoUsers()
   if (!ngos.length) return undefined
 
@@ -111,29 +111,54 @@ function chooseAutoNgoForDisaster(disasterType: DisasterType): string | undefine
     preferred = ['general support', 'volunteer coordination', 'food & water', 'temporary shelter']
   }
 
+  const victimLoc = normalize(victimLocation || '')
+
   const scored = ngos.map(ngo => {
     const services = normalize(ngo.serviceType || '')
-    let score = 0
+    let serviceScore = 0
     preferred.forEach(p => {
-      if (services.includes(p)) score += 1
+      if (services.includes(p)) serviceScore += 1
     })
-    return { ngo, score }
+
+    const ngoLoc = normalize(ngo.location || '')
+    let locationScore = 0
+    if (victimLoc && ngoLoc) {
+      if (ngoLoc === victimLoc) {
+        locationScore = 3
+      } else {
+        const parts = victimLoc.split(/[\n,]/).map(p => p.trim()).filter(Boolean)
+        const matchingPart = parts.find(part => part && ngoLoc.includes(part))
+        if (matchingPart) {
+          locationScore = 2
+        } else if (victimLoc.includes(ngoLoc)) {
+          locationScore = 1
+        } else {
+          locationScore = -0.5
+        }
+      }
+    }
+
+    const totalScore = serviceScore * 10 + locationScore
+    return { ngo, totalScore }
   })
 
-  const bestMatches = scored
-    .filter(s => s.score > 0)
-    .sort((a, b) => b.score - a.score)
+  const best = scored.reduce<{ ngo: NgoUser; totalScore: number } | null>((acc, curr) => {
+    if (!acc || curr.totalScore > acc.totalScore) {
+      return curr
+    }
+    return acc
+  }, null)
 
-  if (bestMatches.length > 0) {
-    return bestMatches[0].ngo.id
+  if (best) {
+    return best.ngo.id
   }
 
-  return ngos[0]?.id
+  return undefined
 }
 
 export function addVictimRequest(rec: Omit<VictimRequest, 'id' | 'createdAt' | 'status'>) {
   const list = safeRead<VictimRequest[]>(VICTIM_REQUESTS_KEY, [])
-  const autoNgoId = rec.assignedNgoId ?? chooseAutoNgoForDisaster(rec.disasterType)
+  const autoNgoId = rec.assignedNgoId ?? chooseAutoNgoForDisaster(rec.disasterType, rec.location)
   const newItem: VictimRequest = {
     id: 'vr_' + Date.now(),
     createdAt: Date.now(),

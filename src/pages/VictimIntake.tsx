@@ -9,6 +9,32 @@ import MapView from '../components/MapView'
 import { matchResources } from '../services/matching'
 import type { Category, Resource, StatusEvent } from '../models'
 import { notifyVolunteerMatched } from '../services/notify'
+import { syncRequestsWithServer } from '../services/sync'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+
+type IntakeResult = {
+  summary?: string
+  category: Category
+  urgency: number
+  needs?: string[]
+  matched?: { id: string; type: string; distanceKm: number }
+  assignedNgoId?: string
+  aiReason?: string
+  usedAi?: boolean
+}
+
+type AiPanelState = {
+  summary?: string
+  category?: string
+  urgency?: number
+  assignedNgoId?: string
+  disasterType?: string
+  needs?: string[]
+  reason?: string
+  usedAi?: boolean
+  error?: string
+}
 
 export default function VictimIntake() {
   const navigate = useNavigate()
@@ -19,13 +45,15 @@ export default function VictimIntake() {
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<any>(null)
   const [refreshSignal, setRefreshSignal] = useState(0)
-  const [result, setResult] = useState<{ category: Category; urgency: number; matched?: { id: string; type: string; distanceKm: number } } | null>(null)
+  const [result, setResult] = useState<IntakeResult | null>(null)
   const [resources, setResources] = useState<Resource[]>([])
   const [lastRequestId, setLastRequestId] = useState<string | null>(null)
   const [timeline, setTimeline] = useState<StatusEvent[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [aiPanel, setAiPanel] = useState<AiPanelState | null>(null)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
 
   const mode = searchParams.get('mode') as 'photo' | 'voice' | 'text' | null
 
@@ -136,42 +164,134 @@ export default function VictimIntake() {
             if (!form.text.trim() && !ocrText.trim()) { setError('Please describe the situation'); return }
             setSubmitting(true)
             try {
-              const text = [form.text, ocrText].filter(Boolean).join('\n').trim()
-              const category = classifyCategory(text)
-              const urgency = estimateUrgency(text)
+              const combinedText = [form.text, ocrText].map(t => t.trim()).filter(Boolean).join('\n').trim()
+              const fallbackCategory = classifyCategory(combinedText)
+              const fallbackUrgency = estimateUrgency(combinedText)
+
+              let aiCategory: Category = fallbackCategory
+              let aiUrgency = fallbackUrgency
+              let aiSummary = combinedText.slice(0, 180)
+              let aiNeeds: string[] = []
+              let aiAssignedNgoId: string | undefined = undefined
+              let aiReason: string | undefined = undefined
+              let aiDisasterType: string | undefined = undefined
+              let aiUsedModel = false
+              let aiError: string | undefined = undefined
+
+              if (navigator.onLine) {
+                try {
+                  const aiRes = await fetch(`${API_BASE}/api/ai/intake`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      text: form.text.trim() || undefined,
+                      ocrText: ocrText || undefined,
+                      audioTranscript: undefined,
+                      location: loc ? { lat: loc.lat, lng: loc.lng, label: loc.label } : undefined,
+                    }),
+                  })
+                  if (aiRes.ok) {
+                    const aiData = await aiRes.json()
+                    if (aiData.ok) {
+                      if (aiData.category && ['medical','rescue','shelter','supplies','unknown'].includes(aiData.category)) {
+                        aiCategory = aiData.category as Category
+                      }
+                      if (typeof aiData.urgency === 'number') {
+                        aiUrgency = Math.max(1, Math.min(5, Math.round(aiData.urgency)))
+                      }
+                      aiSummary = typeof aiData.summary === 'string' && aiData.summary.trim() ? aiData.summary.trim() : aiSummary
+                      aiNeeds = Array.isArray(aiData.needs) ? aiData.needs : aiNeeds
+                      aiAssignedNgoId = aiData.assignedNgoId ? String(aiData.assignedNgoId) : undefined
+                      aiReason = aiData.reason || aiReason
+                      aiDisasterType = aiData.disasterType || aiDisasterType
+                      aiUsedModel = Boolean(aiData.usedAi)
+                    } else {
+                      aiError = aiData.error || 'AI triage failed'
+                    }
+                  } else {
+                    aiError = `AI triage failed (${aiRes.status})`
+                  }
+                } catch (err) {
+                  aiError = 'AI triage request failed. Using fallback classification.'
+                }
+              }
+
               const id = String(Date.now())
               await putRequest({
                 id,
                 reporterUserId: undefined,
                 source: 'app',
-                text,
+                text: combinedText,
                 imageUrl: undefined,
                 audioUrl: undefined,
                 ocrText: ocrText || undefined,
                 detectedLang: undefined,
-                category,
-                urgency,
+                category: aiCategory,
+                urgency: aiUrgency,
                 location: { lat: loc.lat, lng: loc.lng },
+                locationLabel: loc.label,
                 status: 'new',
                 createdAt: Date.now(),
+                aiSummary,
+                aiNeeds,
+                aiReason,
+                aiUsedModel,
+                aiDisasterType,
+                aiAssignedNgoId,
+                synced: false,
+                victimName: form.name || undefined,
+                contact: form.phone || undefined,
               })
               await addStatus({ id: 'se_'+Date.now(), entityType: 'request', entityId: id, status: 'new', timestamp: Date.now(), note: 'Request submitted' })
               // Auto-match with nearby resources
               const resList = await getResources()
-              const top = matchResources({ id, reporterUserId: undefined, source: 'app', text, imageUrl: undefined, audioUrl: undefined, ocrText: ocrText || undefined, detectedLang: undefined, category, urgency, location: { lat: loc.lat, lng: loc.lng }, status: 'new', createdAt: Date.now() }, resList, 1)
+              const top = matchResources({ id, reporterUserId: undefined, source: 'app', text: combinedText, imageUrl: undefined, audioUrl: undefined, ocrText: ocrText || undefined, detectedLang: undefined, category: aiCategory, urgency: aiUrgency, location: { lat: loc.lat, lng: loc.lng }, status: 'new', createdAt: Date.now() }, resList, 1)
               if (top[0]) {
                 const mId = 'm_'+Date.now()
                 await putMatch({ id: mId, requestId: id, resourceId: top[0].r.id, score: top[0].score, distanceKm: top[0].distanceKm, status: 'proposed' })
                 await addStatus({ id: 'se_'+(Date.now()+1), entityType: 'match', entityId: mId, status: 'proposed', timestamp: Date.now(), note: `Proposed to resource ${top[0].r.id}` })
                 notifyVolunteerMatched({ requestId: id, resourceId: top[0].r.id, victimPhone: form.phone })
-                setResult({ category, urgency, matched: { id: top[0].r.id, type: top[0].r.type, distanceKm: Number(top[0].distanceKm.toFixed(2)) } })
+                setResult({
+                  summary: aiSummary,
+                  category: aiCategory,
+                  urgency: aiUrgency,
+                  needs: aiNeeds,
+                  matched: { id: top[0].r.id, type: top[0].r.type, distanceKm: Number(top[0].distanceKm.toFixed(2)) },
+                  assignedNgoId: aiAssignedNgoId,
+                  aiReason,
+                  usedAi: aiUsedModel,
+                })
               } else {
-                setResult({ category, urgency })
+                setResult({
+                  summary: aiSummary,
+                  category: aiCategory,
+                  urgency: aiUrgency,
+                  needs: aiNeeds,
+                  assignedNgoId: aiAssignedNgoId,
+                  aiReason,
+                  usedAi: aiUsedModel,
+                })
               }
               setRefreshSignal(s=> s+1)
               setLastRequestId(id)
+              if (navigator.onLine) {
+                syncRequestsWithServer()
+              }
+              setAiPanel({
+                summary: aiSummary,
+                category: aiCategory,
+                urgency: aiUrgency,
+                assignedNgoId: aiAssignedNgoId,
+                disasterType: aiDisasterType,
+                needs: aiNeeds,
+                reason: aiReason,
+                usedAi: aiUsedModel,
+                error: aiError,
+              })
+              setAiPanelOpen(true)
               // stay on page and show confirmation
               setForm({ name: '', phone: '', text: '' })
+              setOcrText('')
             } catch (err:any) {
               console.error('Submit failed', err)
               setError(err?.message || 'Submission failed. Please try again.')
@@ -199,9 +319,28 @@ export default function VictimIntake() {
             </div>
             {result ? (
               <div className="space-y-2">
-                <div>
-                  Category: <span className="font-medium">{result.category}</span> · Urgency: <span className="font-medium">{result.urgency}</span>
+                {result.summary && (
+                  <div className="text-sm opacity-90">{result.summary}</div>
+                )}
+                <div className="text-xs opacity-80">
+                  Category: <span className="font-semibold">{result.category}</span> · Urgency: <span className="font-semibold">{result.urgency}</span>
                 </div>
+                {result.needs && result.needs.length > 0 && (
+                  <div className="text-xs">
+                    Needs: <span className="opacity-80">{result.needs.join(', ')}</span>
+                  </div>
+                )}
+                {result.assignedNgoId && (
+                  <div className="text-xs">
+                    AI priority NGO: <span className="font-semibold">{result.assignedNgoId}</span>
+                  </div>
+                )}
+                {result.aiReason && (
+                  <div className="text-[11px] opacity-70">Reason: {result.aiReason}</div>
+                )}
+                {result.usedAi === false && (
+                  <div className="text-[11px] text-amber-500">AI unavailable, used local heuristic.</div>
+                )}
                 {result.matched ? (
                   <div className="mt-1">
                     Matched resource: <span className="font-medium">{result.matched.type}</span> ({result.matched.distanceKm} km)

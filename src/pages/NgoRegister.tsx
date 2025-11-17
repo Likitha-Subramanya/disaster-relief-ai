@@ -94,10 +94,17 @@ export default function NgoRegister() {
   }
 
   return (
-    <div className="container max-w-xl py-10 md:py-16">
-      <div className="card p-6 md:p-8">
-        <h1 className="text-2xl font-semibold mb-2 text-center">Register NGO</h1>
-        <p className="text-sm opacity-80 mb-4 text-center">Share your details so victims and admins can see your availability.</p>
+    <div className="min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 flex items-center justify-center px-4 py-12">
+      <div className="bg-white border border-blue-100 rounded-2xl p-6 md:p-8 shadow-card w-full max-w-3xl">
+        <button
+          type="button"
+          className="text-xs text-slate-500 underline mb-3"
+          onClick={() => navigate('/')}
+        >
+          ← Back to home
+        </button>
+        <h1 className="text-2xl font-semibold mb-2 text-center text-slate-800">Register NGO</h1>
+        <p className="text-sm text-slate-500 mb-4 text-center">Share your details so victims and admins can see your availability.</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-1 text-sm">
             <label className="font-medium">Name</label>
@@ -180,6 +187,7 @@ export default function NgoRegister() {
             </div>
           </div>
           {error && <div className="text-xs text-danger">{error}</div>}
+          <div className="text-xs text-right text-slate-500">Already registered? <span className="italic">Use your email/password on the sign in page.</span></div>
           <button type="submit" className="button-primary w-full mt-2">Create NGO Account</button>
         </form>
       </div>

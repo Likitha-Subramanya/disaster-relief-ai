@@ -7,10 +7,6 @@ export default function VictimDashboard() {
   const [profileMissing, setProfileMissing] = useState(false)
   const [requests, setRequests] = useState<VictimRequest[]>([])
   const [showProfilePanel, setShowProfilePanel] = useState(false)
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const stored = localStorage.getItem('resc_victim_theme')
-    return stored === 'light' ? 'light' : 'dark'
-  })
 
   const victim = getCurrentVictim()
 
@@ -29,14 +25,7 @@ export default function VictimDashboard() {
     ? requests.filter(r => r.victimName.toLowerCase() !== victim.name.toLowerCase())
     : requests
 
-  useEffect(() => {
-    localStorage.setItem('resc_victim_theme', theme)
-  }, [theme])
-
-  const containerClasses =
-    theme === 'light'
-      ? 'container py-8 md:py-10 bg-slate-50 text-slate-900'
-      : 'container py-8 md:py-10 bg-slate-950 text-slate-50'
+  const containerClasses = 'min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 py-10 px-4'
 
   function handleLogout() {
     logoutAll()
@@ -51,22 +40,23 @@ export default function VictimDashboard() {
 
   return (
     <div className={containerClasses}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-2xl font-semibold">Victim Dashboard</h1>
+          <p className="text-xs font-semibold tracking-[0.3em] text-slate-400 uppercase">My safety space</p>
+          <h1 className="text-3xl font-semibold text-slate-800">Victim Dashboard</h1>
           {victim && (
-            <p className="text-sm opacity-80">Welcome, {victim.name}. We are tracking your safety.</p>
+            <p className="text-sm text-slate-500">Welcome, {victim.name}. We are tracking your safety.</p>
           )}
         </div>
         <div className="flex gap-2">
           <button
-            className="px-3 py-1.5 rounded-full border border-white/15 text-xs"
+            className="px-3 py-1.5 rounded-full border border-blue-100 bg-white text-xs text-slate-600"
             onClick={() => navigate('/victim/contacts')}
           >
             Emergency contacts
           </button>
           <button
-            className="px-3 py-1.5 rounded-full border border-white/15 text-xs"
+            className="px-3 py-1.5 rounded-full border border-blue-100 bg-white text-xs text-slate-600"
             onClick={() => setShowProfilePanel(true)}
           >
             Profile
@@ -80,23 +70,23 @@ export default function VictimDashboard() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <section className="card p-4">
+      <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
           <h2 className="text-lg font-semibold mb-2">My Requests</h2>
           {myRequests.length === 0 ? (
-            <p className="text-sm opacity-75">No requests found for your name yet. If you raised an SOS, ensure you used the same name.</p>
+            <p className="text-sm text-slate-500">No requests found for your name yet. If you raised an SOS, ensure you used the same name.</p>
           ) : (
             <ul className="space-y-3 text-sm">
               {myRequests.map(r => (
-                <li key={r.id} className="border border-white/10 rounded-lg px-3 py-2">
+                <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
                   <div className="flex justify-between items-center">
                     <div className="font-medium">{r.disasterType.toUpperCase()}</div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                       {r.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <div className="text-xs opacity-80 mt-1">{r.location}</div>
-                  <div className="text-[11px] opacity-60 mt-1">
+                  <div className="text-xs text-slate-500 mt-1">{r.location}</div>
+                  <div className="text-[11px] text-slate-400 mt-1">
                     {new Date(r.createdAt).toLocaleString()}
                   </div>
                 </li>
@@ -106,21 +96,21 @@ export default function VictimDashboard() {
         </section>
 
         <section className="space-y-4">
-          <div className="card p-4">
+          <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
             <h2 className="text-lg font-semibold mb-2">News & Live Incidents</h2>
             {otherRequests.length === 0 ? (
-              <p className="text-sm opacity-75">Latest incidents will appear here as other victims submit requests.</p>
+              <p className="text-sm text-slate-500">Latest incidents will appear here as other victims submit requests.</p>
             ) : (
               <ul className="space-y-2 text-sm max-h-56 overflow-auto">
                 {otherRequests.map(r => (
-                  <li key={r.id} className="border border-white/10 rounded-lg px-3 py-2">
+                  <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
                     <div className="flex justify-between">
                       <span className="font-medium">
                         {disasterLabel(r.disasterType)} reported
                       </span>
-                      <span className="text-[11px] opacity-70">{r.location}</span>
+                      <span className="text-[11px] text-slate-500">{r.location}</span>
                     </div>
-                    <div className="text-[11px] opacity-60">
+                    <div className="text-[11px] text-slate-400">
                       {new Date(r.createdAt).toLocaleTimeString()} — status: {r.status.replace('_', ' ')}
                     </div>
                   </li>
@@ -129,14 +119,14 @@ export default function VictimDashboard() {
             )}
           </div>
 
-          <div className="card p-4">
+          <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
             <h2 className="text-lg font-semibold mb-3">First Aid / Emergency Guide</h2>
             <div className="flex flex-wrap gap-2 mb-3 text-xs">
               {['flood', 'earthquake', 'cyclone', 'fire', 'landslide', 'medical_emergency', 'other'].map(type => (
                 <button
                   key={type}
                   className={`px-3 py-1 rounded-full border ${
-                    guideType === type ? 'border-primary bg-primary/20' : 'border-white/20'
+                    guideType === type ? 'border-primary bg-primary/20 text-primary' : 'border-slate-100 text-slate-500'
                   }`}
                   onClick={() => setGuideType(type)}
                 >
@@ -310,13 +300,21 @@ export default function VictimDashboard() {
       </div>
 
       {showProfilePanel && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div
-            className="bg-slate-900 text-slate-50 border border-white/15 rounded-xl w-full max-w-md p-6 text-sm max-h-[80vh] overflow-y-auto"
+            className="bg-white text-slate-600 border border-blue-100 rounded-2xl w-full max-w-md p-6 text-sm max-h-[80vh] overflow-y-auto shadow-card relative"
             onClick={e => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold mb-1">Profile & Settings</h2>
-            <p className="text-[11px] opacity-70 mb-3">View your details, change theme or log out.</p>
+            <button
+              type="button"
+              aria-label="Close profile panel"
+              className="absolute top-4 right-4 text-xs text-slate-400 hover:text-slate-600"
+              onClick={() => setShowProfilePanel(false)}
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-semibold mb-1 text-slate-800">Profile & Settings</h2>
+            <p className="text-[11px] text-slate-500 mb-3">View your details or log out.</p>
             {victim ? (
               <div className="mb-4 text-xs space-y-1">
                 <div><span className="font-medium">Name:</span> {victim.name}</div>
@@ -326,42 +324,20 @@ export default function VictimDashboard() {
                 <div><span className="font-medium">Rescue contact:</span> {victim.contact}</div>
               </div>
             ) : (
-              <div className="mb-4 text-xs bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
+              <div className="mb-4 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 No profile is saved. Please close this and sign in again.
               </div>
             )}
 
-            <div className="mb-4 text-xs">
-              <h3 className="font-semibold mb-1">Theme</h3>
-              <div className="flex gap-2">
-                <button
-                  className={`px-3 py-1 rounded-full border ${
-                    theme === 'dark' ? 'border-primary bg-primary/20' : 'border-white/20'
-                  }`}
-                  onClick={() => setTheme('dark')}
-                >
-                  Dark
-                </button>
-                <button
-                  className={`px-3 py-1 rounded-full border ${
-                    theme === 'light' ? 'border-primary bg-primary/20' : 'border-white/20'
-                  }`}
-                  onClick={() => setTheme('light')}
-                >
-                  Light
-                </button>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-2 mt-3">
               <button
-                className="px-3 py-1.5 rounded-full border border-white/20 text-xs"
+                className="px-3 py-1.5 rounded-full border border-blue-100 text-xs text-slate-600"
                 onClick={() => setShowProfilePanel(false)}
               >
                 Close
               </button>
               <button
-                className="px-3 py-1.5 rounded-full border border-red-400/70 text-xs text-red-300"
+                className="px-3 py-1.5 rounded-full border border-danger/50 text-xs text-danger"
                 onClick={handleLogout}
               >
                 Logout

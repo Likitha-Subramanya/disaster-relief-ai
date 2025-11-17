@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
-
 body {
   @apply bg-background text-foreground antialiased;
   font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -16,15 +12,15 @@ body {
 }
 
 .card {
-  @apply bg-muted/50 backdrop-blur rounded-xl border border-white/10 shadow-card;
+  @apply bg-muted rounded-2xl border border-slate-200 shadow-card;
 }
 
 .button-primary {
-  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-shadow shadow-lg shadow-primary/20;
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-shadow shadow-lg shadow-primary/30;
 }
 
 .input {
-  @apply w-full px-4 py-2 rounded-lg bg-muted/60 border border-white/10 focus:outline-none focus:ring-2 focus:ring-primary/60;
+  @apply w-full px-4 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/40;
 }
 
 .hero-title {

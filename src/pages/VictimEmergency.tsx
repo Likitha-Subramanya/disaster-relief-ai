@@ -1,7 +1,10 @@
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { addVictimRequest, DisasterType } from '../store/rescue'
-import { MapContainer, TileLayer, Marker } from 'react-leaflet'
+import { geocodeAddress } from '../services/geocode'
+import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
@@ -20,25 +23,77 @@ export default function VictimEmergency() {
   const [contact, setContact] = useState('')
   const [locationMode, setLocationMode] = useState<'enter' | 'detect'>('enter')
   const [location, setLocation] = useState('')
+  const [details, setDetails] = useState('')
   const [disasterType, setDisasterType] = useState<DisasterType>('other')
   const [submitted, setSubmitted] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle')
+  const [searchingAddress, setSearchingAddress] = useState(false)
   const [address, setAddress] = useState('')
+  const [aiDebug, setAiDebug] = useState<{
+    disasterType?: string
+    assignedNgoId?: string
+    reason?: string
+    usedAi?: boolean
+    error?: string
+  } | null>(null)
+  const [aiDebugOpen, setAiDebugOpen] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim() || !location.trim()) return
 
+    let finalDisasterType: DisasterType = disasterType
+    let assignedNgoId: string | undefined = undefined
+
+    setAiDebug(null)
+
+    if (navigator.onLine) {
+      try {
+        const aiRes = await fetch(`${API_BASE}/api/ai/route-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: (details || '').trim() || `Name: ${name}. Location: ${location}. Type: ${disasterType}.`,
+            locationText: location.trim(),
+          }),
+        })
+        if (aiRes.ok) {
+          const aiData = await aiRes.json()
+          if (aiData.ok) {
+            if (aiData.disasterType && typeof aiData.disasterType === 'string') {
+              finalDisasterType = aiData.disasterType as DisasterType
+            }
+
+            if (aiData.assignedNgoId) {
+              assignedNgoId = String(aiData.assignedNgoId)
+            }
+            setAiDebug({
+              disasterType: aiData.disasterType,
+              assignedNgoId: aiData.assignedNgoId ? String(aiData.assignedNgoId) : undefined,
+              reason: aiData.reason,
+              usedAi: aiData.usedAi,
+            })
+            setAiDebugOpen(true)
+          }
+        } else {
+          setAiDebug({ error: `AI request failed with status ${aiRes.status}` })
+        }
+      } catch {
+        setAiDebug({ error: 'AI request failed (network or server error). Falling back to local routing.' })
+      }
+    }
+
     try {
-      await fetch('http://localhost:4000/api/requests', {
+      await fetch(`${API_BASE}/api/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           victimName: name.trim(),
           contact: contact.trim() || undefined,
           location: location.trim(),
-          disasterType,
+          disasterType: finalDisasterType,
+          assignedNgoId,
         }),
       })
     } catch {
@@ -49,7 +104,8 @@ export default function VictimEmergency() {
       victimName: name.trim(),
       contact: contact.trim() || undefined,
       location: location.trim(),
-      disasterType,
+      disasterType: finalDisasterType,
+      assignedNgoId,
     })
     setSubmitted(true)
   }
@@ -83,14 +139,36 @@ export default function VictimEmergency() {
     )
   }
 
+  async function handleSearchAddress() {
+    const text = location.trim()
+    if (!text) return
+    setSearchingAddress(true)
+    try {
+      const res = await geocodeAddress(text)
+      if (!res) {
+        window.alert('Address not found. Try adding city/state information.')
+        return
+      }
+      setCoords({ lat: res.lat, lng: res.lng })
+      setAddress(res.displayName)
+      setLocation(res.displayName)
+      setGpsStatus('ready')
+    } catch (err) {
+      console.error('Manual geocode failed', err)
+      window.alert('Could not look up that address. Please check your network and try again.')
+    } finally {
+      setSearchingAddress(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-foreground flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8">
         {/* Left column: form */}
-        <div className="space-y-4">
+        <div className="space-y-4 bg-white/90 border border-pink-100 rounded-2xl p-6 shadow-card">
           <div>
-            <h1 className="text-2xl font-semibold mb-1">Emergency Request</h1>
-            <p className="text-xs opacity-80">Fill these details so nearby help can reach you quickly.</p>
+            <h1 className="text-2xl font-semibold mb-1 text-slate-700">Emergency Request</h1>
+            <p className="text-xs text-slate-500">Fill these details so nearby help can reach you quickly.</p>
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -101,6 +179,16 @@ export default function VictimEmergency() {
                 placeholder="Your full name"
                 value={name}
                 onChange={e => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1 text-sm">
+              <label className="font-medium">Describe your emergency</label>
+              <textarea
+                className="input min-h-[100px]"
+                placeholder="What exactly is happening? How many people, visible injuries, trapped, water level, fire, etc."
+                value={details}
+                onChange={e => setDetails(e.target.value)}
               />
             </div>
 
@@ -119,14 +207,14 @@ export default function VictimEmergency() {
               <div className="flex gap-3 text-xs">
                 <button
                   type="button"
-                  className={`px-3 py-1 rounded-full border ${locationMode === 'enter' ? 'border-primary bg-primary/10' : 'border-white/20'}`}
+                  className={`px-3 py-1 rounded-full border ${locationMode === 'enter' ? 'border-primary bg-primary/20 text-foreground' : 'border-slate-200 text-slate-500'}`}
                   onClick={() => setLocationMode('enter')}
                 >
                   Enter manually
                 </button>
                 <button
                   type="button"
-                  className={`px-3 py-1 rounded-full border ${locationMode === 'detect' ? 'border-primary bg-primary/10' : 'border-white/20'}`}
+                  className={`px-3 py-1 rounded-full border ${locationMode === 'detect' ? 'border-primary bg-primary/20 text-foreground' : 'border-slate-200 text-slate-500'}`}
                   onClick={handleDetect}
                 >
                   Use my current location
@@ -141,6 +229,19 @@ export default function VictimEmergency() {
               {address && (
                 <div className="text-[11px] opacity-70 mt-1">Detected address: {address}</div>
               )}
+              <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-full border border-blue-100 bg-white text-slate-600"
+                  onClick={handleSearchAddress}
+                  disabled={searchingAddress}
+                >
+                  {searchingAddress ? 'Searching…' : 'Search this address'}
+                </button>
+                {gpsStatus === 'ready' && coords && (
+                  <span className="text-[11px] text-slate-500">Map centered at {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}</span>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1 text-sm">
@@ -173,17 +274,53 @@ export default function VictimEmergency() {
 
             <button type="submit" className="button-primary w-full mt-2">Submit request</button>
           </form>
+
+          {aiDebug && (
+            <div className="mt-4 border border-blue-100 rounded-xl text-xs bg-white/80">
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2 flex items-center justify-between text-slate-600"
+                onClick={() => setAiDebugOpen(o => !o)}
+              >
+                <span className="font-semibold">AI routing debug</span>
+                <span className="opacity-50">{aiDebugOpen ? 'Hide' : 'Show'}</span>
+              </button>
+              {aiDebugOpen && (
+                <div className="px-3 pb-3 space-y-1 text-slate-600">
+                  {aiDebug.error && (
+                    <div className="text-danger">{aiDebug.error}</div>
+                  )}
+                  {!aiDebug.error && (
+                    <>
+                      <div>
+                        Mode: <span className="font-medium">{aiDebug.usedAi ? 'OpenAI model' : 'Heuristic fallback'}</span>
+                      </div>
+                      <div>
+                        Disaster type: <span className="font-medium">{aiDebug.disasterType || '(none)'}</span>
+                      </div>
+                      <div>
+                        Assigned NGO id: <span className="font-medium">{aiDebug.assignedNgoId || '(none)'}</span>
+                      </div>
+                      {aiDebug.reason && (
+                        <div className="mt-1 opacity-80">Reason: {aiDebug.reason}</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right column: map */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center text-sm">
-            <div className="font-medium">Location on map</div>
-            <div className="text-[11px] opacity-70">
-              {gpsStatus === 'ready' ? 'GPS ready' : gpsStatus === 'locating' ? 'Trying to detect location…' : 'Manual location'}
+        <div className="space-y-3 bg-white/90 border border-blue-100 rounded-2xl p-4 shadow-card">
+          <div className="flex justify-between items-center text-sm text-slate-600">
+            <div className="font-medium text-slate-700">Location on map</div>
+            <div className="text-[11px]">
+              {gpsStatus === 'ready' ? 'GPS ready' : gpsStatus === 'locating' ? 'Detecting location…' : 'Manual location'}
             </div>
           </div>
-          <div className="h-64 md:h-80 rounded-lg overflow-hidden border border-white/10 bg-slate-900">
+          <div className="h-64 md:h-80 rounded-xl overflow-hidden border border-blue-100 bg-gradient-to-br from-white to-sky-50">
             {coords ? (
               <MapContainer center={[coords.lat, coords.lng]} zoom={15} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
@@ -193,7 +330,7 @@ export default function VictimEmergency() {
                 <Marker position={[coords.lat, coords.lng]} />
               </MapContainer>
             ) : (
-              <div className="h-full w-full flex items-center justify-center text-xs opacity-70 px-4 text-center">
+              <div className="h-full w-full flex items-center justify-center text-xs text-slate-500 px-4 text-center">
                 Location not yet detected. You can enter your address or tap "Use my current location".
               </div>
             )}
@@ -203,10 +340,18 @@ export default function VictimEmergency() {
 
       {/* Confirmation popup */}
       {submitted && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
-          <div className="bg-slate-900 border border-white/20 rounded-xl px-6 py-5 max-w-sm w-full text-center text-sm">
-            <h2 className="text-lg font-semibold mb-2">Request sent</h2>
-            <p className="opacity-80 mb-4">Help is on the way. Stay safe and keep your phone nearby.</p>
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-[9999]">
+          <div className="bg-white border border-blue-100 rounded-2xl px-6 py-5 max-w-sm w-full text-center text-sm text-slate-600 shadow-card relative">
+            <button
+              type="button"
+              aria-label="Close confirmation"
+              className="absolute top-4 right-4 text-xs text-slate-400 hover:text-slate-600"
+              onClick={() => setSubmitted(false)}
+            >
+              ✕
+            </button>
+            <h2 className="text-lg font-semibold mb-2 text-slate-700">Request sent</h2>
+            <p className="mb-4">Help is on the way. Stay safe and keep your phone nearby.</p>
             <button
               className="button-primary w-full"
               onClick={() => navigate('/')}

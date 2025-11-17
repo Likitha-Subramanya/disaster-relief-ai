@@ -15,7 +15,7 @@ import NotFound from './pages/NotFound'
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<RescueHome />} />
@@ -33,7 +33,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <footer className="border-t border-slate-800 py-4 text-xs text-center opacity-70">
+      <footer className="border-t border-blue-100 bg-white/70 py-4 text-xs text-center text-slate-500">
         RescueTech — Connecting people with help when every second matters.
       </footer>
     </div>

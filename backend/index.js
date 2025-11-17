@@ -6,6 +6,7 @@ import cors from 'cors'
 import path from 'path'
 import Database from 'better-sqlite3'
 import { fileURLToPath } from 'url'
+import { aiRouteRequest, aiIntakeTriage } from './aiRouter.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -233,6 +234,38 @@ app.post('/api/admins/login', (req, res) => {
       email: row.email,
     },
   })
+})
+
+// ---- AI routing endpoints ----
+
+app.post('/api/ai/route-request', async (req, res) => {
+  const { message, locationText } = req.body || {}
+  if (!message || !locationText) {
+    return res.status(400).json({ ok: false, error: 'message and locationText are required' })
+  }
+
+  try {
+    const result = await aiRouteRequest({ message, locationText })
+    return res.json({ ok: true, ...result })
+  } catch (err) {
+    console.error('AI routing failed', err)
+    return res.status(500).json({ ok: false, error: 'AI routing failed' })
+  }
+})
+
+app.post('/api/ai/intake', async (req, res) => {
+  const { text, ocrText, audioTranscript, location } = req.body || {}
+  if (!text && !ocrText && !audioTranscript) {
+    return res.status(400).json({ ok: false, error: 'At least one of text, ocrText, or audioTranscript is required' })
+  }
+
+  try {
+    const result = await aiIntakeTriage({ text, ocrText, audioTranscript, location })
+    return res.json({ ok: true, ...result })
+  } catch (err) {
+    console.error('AI intake triage failed', err)
+    return res.status(500).json({ ok: false, error: 'AI intake triage failed' })
+  }
 })
 
 // ---- Victim request endpoints ----
