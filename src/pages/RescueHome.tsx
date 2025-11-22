@@ -83,18 +83,7 @@ export default function RescueHome() {
                 Onboard my NGO
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-white/90 border border-blue-100 rounded-2xl p-4 shadow-card">
-                <ShieldCheck className="w-6 h-6 text-primary mb-2" />
-                <div className="text-2xl font-semibold text-slate-800">1500+</div>
-                <p className="text-xs text-slate-500">Requests triaged with AI reasoning</p>
-              </div>
-              <div className="bg-white/90 border border-pink-100 rounded-2xl p-4 shadow-card animate-[pulse_5s_ease-in-out_infinite]">
-                <Radio className="w-6 h-6 text-accent mb-2" />
-                <div className="text-2xl font-semibold text-slate-800">230 NGOs</div>
-                <p className="text-xs text-slate-500">Ready with live geolocation routing</p>
-              </div>
-            </div>
+            {/* Badges removed per request: removed AI triage and live routing summary blocks */}
           </div>
 
           <div className="relative">

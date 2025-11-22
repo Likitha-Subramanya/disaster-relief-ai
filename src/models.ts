@@ -26,6 +26,7 @@ export interface Request {
   imageUrl?: string
   audioUrl?: string
   ocrText?: string
+  audioTranscript?: string
   detectedLang?: string
   category: Category
   urgency: number // 1-5
@@ -39,6 +40,15 @@ export interface Request {
   aiUsedModel?: boolean
   aiDisasterType?: string
   aiAssignedNgoId?: string
+  aiConfidence?: number
+  severityLevel?: number
+  severityLabel?: string
+  peopleAffected?: number | null
+  trapped?: boolean | null
+  injured?: boolean | null
+  specialConstraints?: string[]
+  uncertaintyFlag?: boolean
+  uncertaintyReasons?: string[]
   synced?: boolean
   victimName?: string
   contact?: string

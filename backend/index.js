@@ -370,6 +370,40 @@ app.delete('/api/ngos/:id', (req, res) => {
   }
 })
 
+// ---- Transcription endpoint (multilingual voice-to-text) ----
+// Accepts JSON { audioBase64: string } where audioBase64 is a base64-encoded audio file (webm/ogg/wav)
+app.post('/api/transcribe', express.json({ limit: '25mb' }), async (req, res) => {
+  const { audioBase64 } = req.body || {}
+  if (!audioBase64) return res.status(400).json({ ok: false, error: 'No audio provided' })
+  const OPENAI_KEY = process.env.OPENAI_API_KEY
+  if (!OPENAI_KEY) return res.status(400).json({ ok: false, error: 'Transcription not configured on server (OPENAI_API_KEY missing)' })
+
+  try {
+    const buffer = Buffer.from(audioBase64, 'base64')
+    // Use WHATWG FormData + Blob (Node 18+). Create a Blob from the buffer and send to OpenAI Whisper endpoint.
+    const form = new FormData()
+    const blob = new Blob([buffer], { type: 'audio/webm' })
+    form.append('file', blob, 'audio.webm')
+    form.append('model', 'whisper-1')
+
+    const openaiRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${OPENAI_KEY}` },
+      body: form,
+    })
+    const j = await openaiRes.json()
+    if (!openaiRes.ok) {
+      console.error('OpenAI transcription error', j)
+      return res.status(500).json({ ok: false, error: 'Transcription provider error', raw: j })
+    }
+    // OpenAI returns { text: '...' }
+    return res.json({ ok: true, transcript: j.text ?? j.transcript ?? null, raw: j })
+  } catch (err) {
+    console.error('Transcription failed', err)
+    return res.status(500).json({ ok: false, error: 'Transcription failed' })
+  }
+})
+
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
   console.log(`RescueTech API running on http://localhost:${PORT}`)

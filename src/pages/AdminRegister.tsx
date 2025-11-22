@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { registerAdmin } from '../store/rescue'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+
 export default function AdminRegister() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
@@ -25,7 +27,7 @@ export default function AdminRegister() {
     }
 
     try {
-      await fetch('http://localhost:4000/api/admins/register', {
+      const resp = await fetch(`${API_BASE}/api/admins/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -34,7 +36,14 @@ export default function AdminRegister() {
           password,
         }),
       })
-    } catch {
+      const body = await resp.json().catch(() => ({}))
+      if (!resp.ok) {
+        setError(body.error || 'Failed to register admin on server')
+        return
+      }
+    } catch (err:any) {
+      setError(err?.message || 'Network error while registering admin')
+      return
     }
 
     navigate('/admin/login')
@@ -70,6 +79,7 @@ export default function AdminRegister() {
             <label className="font-medium">Admin ID (predefined)</label>
             <input className="input" value={adminId} onChange={e => setAdminId(e.target.value)} />
           </div>
+          
           {error && <div className="text-xs text-danger">{error}</div>}
           <div className="text-xs text-right text-slate-500">Already registered? <span className="italic">Use your email/password on the sign in page.</span></div>
           <button type="submit" className="button-primary w-full mt-2">Register Admin</button>

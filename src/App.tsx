@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import RescueHome from './pages/RescueHome'
+import AiDemo from './pages/AiDemo'
 import VictimEmergency from './pages/VictimEmergency'
 import VictimLogin from './pages/VictimLogin'
 import VictimRegister from './pages/VictimRegister'
@@ -8,6 +9,7 @@ import VictimEmergencyContacts from './pages/VictimEmergencyContacts'
 import NgoLogin from './pages/NgoLogin'
 import NgoRegister from './pages/NgoRegister'
 import NgoDashboard from './pages/NgoDashboard'
+import NgoMap from './pages/NgoMap'
 import AdminLogin from './pages/AdminLogin'
 import AdminRegister from './pages/AdminRegister'
 import AdminDashboard from './pages/AdminDashboard'
@@ -24,9 +26,11 @@ export default function App() {
           <Route path="/victim/register" element={<VictimRegister />} />
           <Route path="/victim/dashboard" element={<VictimDashboard />} />
           <Route path="/victim/contacts" element={<VictimEmergencyContacts />} />
+          <Route path="/ai/demo" element={<AiDemo />} />
           <Route path="/ngo/login" element={<NgoLogin />} />
           <Route path="/ngo/register" element={<NgoRegister />} />
           <Route path="/ngo/dashboard" element={<NgoDashboard />} />
+          <Route path="/ngo/map" element={<NgoMap />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/register" element={<AdminRegister />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

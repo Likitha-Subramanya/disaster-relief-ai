@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCurrentVictim, getVictimRequests, VictimRequest, logoutAll } from '../store/rescue'
+import { getCurrentVictim, getVictimRequests, VictimRequest, logoutAll, getNgoUsers } from '../store/rescue'
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
 
 export default function VictimDashboard() {
   const navigate = useNavigate()
@@ -15,6 +18,18 @@ export default function VictimDashboard() {
       setProfileMissing(true)
     }
     setRequests(getVictimRequests())
+  }, [])
+
+  // Auto-refresh NGOs and requests every few seconds so the map and lists update.
+  const [ngosList, setNgosList] = useState(() => getNgoUsers())
+  useEffect(() => {
+    const tick = () => {
+      setRequests(getVictimRequests())
+      setNgosList(getNgoUsers())
+    }
+    tick()
+    const id = setInterval(tick, 3000)
+    return () => clearInterval(id)
   }, [])
 
   const myRequests = victim
@@ -37,6 +52,40 @@ export default function VictimDashboard() {
   }
 
   const [guideType, setGuideType] = useState<string>('flood')
+
+  // Leaflet default icon fix and coloured markers
+  // @ts-ignore
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+  })
+
+  const greenIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+  })
+
+  const redIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+  })
+
+  function parseLatLng(raw?: string | null) {
+    if (!raw) return null
+    const m = String(raw).trim().match(/(-?\d+(?:\.\d+)?)\s*[,\s]\s*(-?\d+(?:\.\d+)?)/)
+    if (!m) return null
+    const lat = Number(m[1]); const lng = Number(m[2])
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
+  }
 
   return (
     <div className={containerClasses}>
@@ -73,54 +122,84 @@ export default function VictimDashboard() {
       <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
         <section className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
           <h2 className="text-lg font-semibold mb-2">My Requests</h2>
-          {myRequests.length === 0 ? (
-            <p className="text-sm text-slate-500">No requests found for your name yet. If you raised an SOS, ensure you used the same name.</p>
-          ) : (
-            <ul className="space-y-3 text-sm">
-              {myRequests.map(r => (
-                <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
-                  <div className="flex justify-between items-center">
-                    <div className="font-medium">{r.disasterType.toUpperCase()}</div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {r.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">{r.location}</div>
-                  <div className="text-[11px] text-slate-400 mt-1">
-                    {new Date(r.createdAt).toLocaleString()}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* keep a small visible area even when empty */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Report a new request</div>
+                <div className="text-xs text-slate-500">Tap to open the emergency request flow.</div>
+              </div>
+              <button
+                type="button"
+                className="button-primary text-sm"
+                onClick={() => navigate('/victim/emergency')}
+              >
+                Report request
+              </button>
+            </div>
+
+            <div>
+              {myRequests.length === 0 ? (
+                <div className="text-xs text-slate-500">No requests submitted by you yet.</div>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {myRequests.map(r => (
+                    <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
+                      <div className="flex justify-between items-center">
+                        <div className="font-medium">{r.disasterRaw || disasterLabel(r.disasterType)}</div>
+                        <span className="text-[11px] text-slate-500">{new Date(r.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">{r.location}</div>
+                      <div className="text-[11px] text-slate-400 mt-1">Status: {r.status.replace('_', ' ')}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Map below My Requests showing NGOs (green) and recent incidents (red) */}
+          <div className="mt-4 rounded-xl overflow-hidden border border-blue-100 bg-gradient-to-br from-white to-sky-50 h-[40vh]">
+            <MapContainer center={[12.9716, 77.5946]} zoom={11} style={{ height: '100%', width: '100%' }}>
+              <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {ngosList.map(ngo => {
+                const p = parseLatLng(ngo.location)
+                if (!p) return null
+                return (
+                  <Marker key={ngo.id} position={[p.lat, p.lng]} icon={greenIcon}>
+                    <Popup>
+                      <div className="text-xs">
+                        <div className="font-semibold">{ngo.name}</div>
+                        <div className="opacity-70">{ngo.location}</div>
+                        <div className="opacity-70">Services: {ngo.serviceType || '—'}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              })}
+
+              {requests.map(r => {
+                const p = parseLatLng(r.location)
+                if (!p) return null
+                return (
+                  <Marker key={`req-${r.id}`} position={[p.lat, p.lng]} icon={redIcon}>
+                    <Popup>
+                      <div className="text-xs">
+                        <div className="font-semibold">{r.disasterRaw || disasterLabel(r.disasterType)}</div>
+                        <div className="opacity-70">{r.location}</div>
+                        <div className="opacity-70">Status: {r.status.replace('_', ' ')}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              })}
+            </MapContainer>
+          </div>
         </section>
 
         <section className="space-y-4">
           <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
-            <h2 className="text-lg font-semibold mb-2">News & Live Incidents</h2>
-            {otherRequests.length === 0 ? (
-              <p className="text-sm text-slate-500">Latest incidents will appear here as other victims submit requests.</p>
-            ) : (
-              <ul className="space-y-2 text-sm max-h-56 overflow-auto">
-                {otherRequests.map(r => (
-                  <li key={r.id} className="border border-blue-50 rounded-xl px-3 py-2 bg-white/70">
-                    <div className="flex justify-between">
-                      <span className="font-medium">
-                        {disasterLabel(r.disasterType)} reported
-                      </span>
-                      <span className="text-[11px] text-slate-500">{r.location}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      {new Date(r.createdAt).toLocaleTimeString()} — status: {r.status.replace('_', ' ')}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
-            <h2 className="text-lg font-semibold mb-3">First Aid / Emergency Guide</h2>
+            <h2 className="text-lg font-semibold mb-3">Emergency Guide</h2>
             <div className="flex flex-wrap gap-2 mb-3 text-xs">
               {['flood', 'earthquake', 'cyclone', 'fire', 'landslide', 'medical_emergency', 'other'].map(type => (
                 <button
@@ -295,6 +374,55 @@ export default function VictimDashboard() {
                 </ul>
               </div>
             )}
+            {/* Do's and Don'ts columns */}
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-white/90 border border-green-100 rounded-lg p-3">
+                <div className="font-semibold text-sm mb-2">Do's</div>
+                <ul className="list-disc list-inside text-xs opacity-90">
+                  {guideType === 'flood' && (
+                    <>
+                      <li>Move to higher ground and follow official evacuation routes.</li>
+                      <li>Carry identification, medicines and basic supplies.</li>
+                    </>
+                  )}
+                  {guideType === 'earthquake' && (
+                    <>
+                      <li>Drop, cover and hold until shaking stops.</li>
+                      <li>Check for injuries and help others if safe.</li>
+                    </>
+                  )}
+                  {guideType !== 'flood' && guideType !== 'earthquake' && (
+                    <>
+                      <li>Follow instructions from local authorities.</li>
+                      <li>Keep communications lines clear for emergency calls.</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+              <div className="bg-white/90 border border-red-100 rounded-lg p-3">
+                <div className="font-semibold text-sm mb-2">Don'ts</div>
+                <ul className="list-disc list-inside text-xs opacity-90">
+                  {guideType === 'flood' && (
+                    <>
+                      <li>Do not walk or drive through flood water if unsure.</li>
+                      <li>Do not use contaminated water for drinking.</li>
+                    </>
+                  )}
+                  {guideType === 'earthquake' && (
+                    <>
+                      <li>Do not rush outside while the building is shaking.</li>
+                      <li>Do not return to damaged buildings until declared safe.</li>
+                    </>
+                  )}
+                  {guideType !== 'flood' && guideType !== 'earthquake' && (
+                    <>
+                      <li>Do not spread rumours or unverified information.</li>
+                      <li>Do not attempt risky rescues without training.</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
       </div>

@@ -11,6 +11,30 @@ import {
   logoutAll,
   assignNgoToVictim,
 } from '../store/rescue'
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+import { getNgoUsers } from '../store/rescue'
+
+// Fix default icon paths in Vite
+// @ts-ignore
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+})
+
+function parseLatLng(raw?: string | null) {
+  if (!raw) return null
+  const m = String(raw).trim().match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/)
+  if (!m) return null
+  const lat = Number(m[1]); const lng = Number(m[2])
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return { lat, lng }
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
 
 export default function NgoDashboard() {
   const navigate = useNavigate()
@@ -35,7 +59,17 @@ export default function NgoDashboard() {
 
   useEffect(() => {
     if (!ngo) return
-    setRequests(getVictimRequests())
+    let cancelled = false
+    const load = () => {
+      const list = getVictimRequests()
+      if (!cancelled) setRequests(list)
+    }
+    load()
+    const id = setInterval(load, 4000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
   }, [ngo])
 
   if (!ngo) {
@@ -50,12 +84,13 @@ export default function NgoDashboard() {
     )
   }
 
-  function handleStatusChange(id: string, status: RequestStatus) {
+  async function handleStatusChange(id: string, status: RequestStatus) {
     updateVictimRequestStatus(id, status)
     if (status === 'completed' && ngo) {
       assignNgoToVictim(id, ngo.id)
     }
-    setRequests(getVictimRequests())
+    const latest = getVictimRequests()
+    setRequests(latest)
   }
 
   function openMap(r: VictimRequest) {
@@ -149,8 +184,11 @@ export default function NgoDashboard() {
     navigate('/')
   }
 
-  const todo = requests.filter(r => r.status === 'to_do' || r.status === 'in_progress' || r.status === 'reached')
-  const done = requests.filter(r => r.status === 'completed')
+  const myRequests = requests
+    .filter(r => r.assignedNgoId === ngo.id)
+    .sort((a, b) => b.createdAt - a.createdAt)
+  const todo = myRequests.filter(r => r.status === 'to_do' || r.status === 'in_progress' || r.status === 'reached')
+  const done = myRequests.filter(r => r.status === 'completed')
 
   const serviceLabel = ngo.serviceType
   const containerClasses = 'min-h-screen bg-gradient-to-b from-white via-secondary/40 to-white text-slate-700 py-10 px-4'
@@ -170,6 +208,115 @@ export default function NgoDashboard() {
         >
           Settings
         </button>
+      </div>
+
+      {/* Top profile + summary */}
+      <div className="mb-6 max-w-6xl mx-auto grid md:grid-cols-3 gap-6">
+        <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-card">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">{(ngo.name || 'NGO').split(' ').map(s=>s[0]).slice(0,2).join('')}</div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">{ngo.name}</h2>
+                  <div className="text-xs text-slate-500">{ngo.address || ngo.location}</div>
+                </div>
+                <div className="text-xs">
+                  <button className="px-2 py-1 rounded-md border border-blue-100 text-xs" onClick={() => setShowSettings(true)}>Edit</button>
+                </div>
+              </div>
+
+              <div className="mt-3 text-xs space-y-2">
+                <div>
+                  <div className="text-[11px] opacity-70">Contact</div>
+                  <div className="font-medium">{ngo.phone || 'Not provided'}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] opacity-70">Services</div>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {(ngo.serviceType || '').split(',').map(s => s.trim()).filter(Boolean).slice(0,12).map(s => (
+                      <span key={s} className="text-[11px] px-2 py-1 bg-primary/10 text-primary rounded-full">{s}</span>
+                    ))}
+                  </div>
+                </div>
+                {ngo.branches && ngo.branches.length > 0 && (
+                  <div>
+                    <div className="text-[11px] opacity-70">Branches</div>
+                    <ul className="text-[11px] list-disc pl-5 mt-1">
+                      {ngo.branches.map(b => <li key={b}>{b}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="md:col-span-2 grid grid-cols-3 gap-4">
+          <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-card text-center">
+            <div className="text-xs opacity-70">Total tasks</div>
+            <div className="text-2xl font-semibold">{requests.filter(r => r.assignedNgoId === ngo.id).length}</div>
+          </div>
+          <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-card text-center">
+            <div className="text-xs opacity-70">Pending</div>
+            <div className="text-2xl font-semibold">{requests.filter(r => r.assignedNgoId === ngo.id && r.status !== 'completed').length}</div>
+          </div>
+          <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-card text-center">
+            <div className="text-xs opacity-70">Completed</div>
+            <div className="text-2xl font-semibold">{requests.filter(r => r.assignedNgoId === ngo.id && r.status === 'completed').length}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Map showing all NGOs and this NGO's assigned requests */}
+      <div className="mb-6 max-w-6xl mx-auto">
+        <h2 className="text-lg font-semibold mb-2">Map: NGO network & assigned requests</h2>
+        <div className="rounded-xl overflow-hidden border border-blue-100 bg-gradient-to-br from-white to-sky-50 h-72">
+          <MapContainer center={[12.9716, 77.5946]} zoom={12} style={{ height: '100%', width: '100%' }}>
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {/* Current NGO marker */}
+            {(() => {
+              const p = (typeof ngo.lat === 'number' && typeof ngo.lng === 'number') ? { lat: ngo.lat as number, lng: ngo.lng as number } : (parseLatLng(ngo.location) || parseLatLng(ngo.address))
+              if (p) {
+                return (
+                  <Marker key={`this-ng0-${ngo.id}`} position={[p.lat, p.lng]}>
+                    <Popup>
+                      <div className="text-xs"><div className="font-semibold">{ngo.name} (You)</div><div className="opacity-70">{ngo.address || ngo.location}</div></div>
+                    </Popup>
+                  </Marker>
+                )
+              }
+              return null
+            })()}
+            {/* Other NGOs */}
+            {(() => {
+              const others = getNgoUsers().filter(n => n.id !== ngo.id)
+              return others.map(o => {
+                  const p = (typeof o.lat === 'number' && typeof o.lng === 'number') ? { lat: o.lat as number, lng: o.lng as number } : (parseLatLng(o.location) || parseLatLng(o.address))
+                  if (!p) return null
+                  return (
+                    <Marker key={`ngo-${o.id}`} position={[p.lat, p.lng]}>
+                      <Popup>
+                        <div className="text-xs"><div className="font-semibold">{o.name}</div><div className="opacity-70">{o.address || o.location}</div></div>
+                      </Popup>
+                    </Marker>
+                  )
+              })
+            })()}
+            {/* Assigned requests (red markers) */}
+            {myRequests.map(r => {
+              const p = parseLatLng(r.location)
+              if (!p) return null
+              return (
+                <Marker key={`req-${r.id}`} position={[p.lat, p.lng]}>
+                  <Popup>
+                    <div className="text-xs"><div className="font-semibold">{r.victimName}</div><div className="opacity-70">{r.location}</div><div className="opacity-70">{r.disasterType}</div></div>
+                  </Popup>
+                </Marker>
+              )
+            })}
+          </MapContainer>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 max-w-6xl mx-auto">
@@ -199,6 +346,18 @@ export default function NgoDashboard() {
                     </div>
                   </div>
                   <div className="text-xs text-slate-500 mb-1">{r.location}</div>
+                  {(r.audioUrl || r.transcript) && (
+                    <div className="mt-1 text-[11px] space-y-1">
+                      {r.audioUrl && (
+                        <audio controls src={r.audioUrl} className="h-8">
+                          Your browser does not support audio.
+                        </audio>
+                      )}
+                      {r.transcript && (
+                        <div className="text-slate-500">Voice transcript: {r.transcript}</div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex gap-2 flex-wrap text-[11px] mt-1">
                     <span>Status:</span>
                     {(['to_do', 'in_progress', 'reached', 'completed'] as RequestStatus[]).map(st => (
@@ -230,6 +389,18 @@ export default function NgoDashboard() {
                     <span className="text-[11px] text-slate-500">{r.disasterType.toUpperCase()}</span>
                   </div>
                   <div className="text-xs text-slate-500">{r.location}</div>
+                  {(r.audioUrl || r.transcript) && (
+                    <div className="mt-1 text-[11px] space-y-1">
+                      {r.audioUrl && (
+                        <audio controls src={r.audioUrl} className="h-8">
+                          Your browser does not support audio.
+                        </audio>
+                      )}
+                      {r.transcript && (
+                        <div className="text-slate-500">Voice transcript: {r.transcript}</div>
+                      )}
+                    </div>
+                  )}
                   <div className="text-[11px] text-slate-400 mt-1">Completed — {new Date(r.createdAt).toLocaleString()}</div>
                 </li>
               ))}

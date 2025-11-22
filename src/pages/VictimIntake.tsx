@@ -1,8 +1,9 @@
-import { Mic, Send, Camera, FileText, ShieldAlert } from 'lucide-react'
+import { Mic, Send, Camera, FileText, ShieldAlert, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import LocationInput, { LocationValue } from '../components/LocationInput'
 import { ocrImage } from '../services/ocr'
+import { transcribeAudio } from '../services/audio'
 import { classifyCategory, estimateUrgency } from '../services/nlp'
 import { putRequest, getResources, putMatch, addStatus, getStatus } from '../store/db'
 import MapView from '../components/MapView'
@@ -12,6 +13,15 @@ import { notifyVolunteerMatched } from '../services/notify'
 import { syncRequestsWithServer } from '../services/sync'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 type IntakeResult = {
   summary?: string
@@ -41,6 +51,11 @@ export default function VictimIntake() {
   const [searchParams] = useSearchParams()
   const [form, setForm] = useState({ name: '', phone: '', text: '' })
   const [ocrText, setOcrText] = useState('')
+  const [audioTranscript, setAudioTranscript] = useState('')
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null)
+  const [audioUploading, setAudioUploading] = useState(false)
   const [loc, setLoc] = useState<LocationValue | undefined>(undefined)
   const [listening, setListening] = useState(false)
   const recognitionRef = useRef<any>(null)
@@ -78,9 +93,46 @@ export default function VictimIntake() {
 
   async function handleImageChange(file?: File) {
     if (!file) return
-    const text = await ocrImage(file)
-    setOcrText(text)
-    setForm(f=> ({...f, text: f.text ? f.text + '\n' + text : text }))
+    try {
+      const text = await ocrImage(file)
+      setOcrText(text)
+      setForm(f=> ({...f, text: f.text ? f.text + '\n' + text : text }))
+      try {
+        const dataUrl = await fileToDataUrl(file)
+        setPhotoDataUrl(dataUrl)
+      } catch (err) {
+        console.warn('Failed to read photo data', err)
+      }
+    } catch (err) {
+      console.error('OCR failed', err)
+      alert('Could not read text from the image. Please try another photo or describe the situation manually.')
+    }
+  }
+
+  async function handleAudioUpload(file?: File) {
+    if (!file) return
+    setAudioUploading(true)
+    try {
+      const transcript = await transcribeAudio(file)
+      if (transcript) {
+        setAudioTranscript(transcript)
+        setForm(f => ({ ...f, text: f.text ? `${f.text}\n${transcript}` : transcript }))
+        setAudioFile(file)
+        try {
+          const dataUrl = await fileToDataUrl(file)
+          setAudioDataUrl(dataUrl)
+        } catch (err) {
+          console.warn('Failed to read audio data', err)
+        }
+      } else {
+        alert('Unable to transcribe this audio. Please describe the situation in text.')
+      }
+    } catch (err) {
+      console.error('Audio transcription failed', err)
+      alert('Audio transcription failed. Please try again or describe via text.')
+    } finally {
+      setAudioUploading(false)
+    }
   }
   function toggleVoice() {
     const rec = recognitionRef.current
@@ -131,7 +183,7 @@ export default function VictimIntake() {
           </div>
 
           {/* Capture tiles */}
-          <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-4 gap-3 text-xs">
             <label className={`card p-3 flex flex-col items-center gap-2 hover:bg-white/5 cursor-pointer ${mode === 'photo' ? 'ring-1 ring-red-400' : ''}`}>
               <Camera className="w-5 h-5 text-red-300" />
               <span className="font-medium">Photo</span>
@@ -155,16 +207,30 @@ export default function VictimIntake() {
               <span className="font-medium">Text</span>
               <span className="text-[11px] opacity-70">Use the form below</span>
             </button>
+            <label className="card p-3 flex flex-col items-center gap-2 hover:bg-white/5 cursor-pointer">
+              <Upload className="w-5 h-5 text-emerald-300" />
+              <span className="font-medium">Audio</span>
+              <span className="text-[11px] opacity-70">Upload voice memo</span>
+              <input
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={e => handleAudioUpload(e.target.files?.[0])}
+                disabled={audioUploading}
+              />
+              {audioUploading && <span className="text-[10px] text-emerald-200">Transcribing…</span>}
+            </label>
           </div>
 
           <form className="grid gap-4" onSubmit={async (e)=>{
             e.preventDefault()
             setError(null)
+            if (!form.name.trim()) { setError('Please enter the victim name'); return }
             if (!loc) { setError('Please select location'); return }
             if (!form.text.trim() && !ocrText.trim()) { setError('Please describe the situation'); return }
             setSubmitting(true)
             try {
-              const combinedText = [form.text, ocrText].map(t => t.trim()).filter(Boolean).join('\n').trim()
+              const combinedText = [form.text, ocrText, audioTranscript].map(t => t.trim()).filter(Boolean).join('\n').trim()
               const fallbackCategory = classifyCategory(combinedText)
               const fallbackUrgency = estimateUrgency(combinedText)
 
@@ -186,8 +252,13 @@ export default function VictimIntake() {
                     body: JSON.stringify({
                       text: form.text.trim() || undefined,
                       ocrText: ocrText || undefined,
-                      audioTranscript: undefined,
+                      audioTranscript: audioTranscript || undefined,
+                      photos: photoDataUrl ? [photoDataUrl] : undefined,
                       location: loc ? { lat: loc.lat, lng: loc.lng, label: loc.label } : undefined,
+                      attachments: {
+                        hasImage: Boolean(photoDataUrl),
+                        hasAudio: Boolean(audioTranscript || audioFile),
+                      },
                     }),
                   })
                   if (aiRes.ok) {
@@ -222,9 +293,10 @@ export default function VictimIntake() {
                 reporterUserId: undefined,
                 source: 'app',
                 text: combinedText,
-                imageUrl: undefined,
-                audioUrl: undefined,
+                imageUrl: photoDataUrl || undefined,
+                audioUrl: audioDataUrl || undefined,
                 ocrText: ocrText || undefined,
+                audioTranscript: audioTranscript || undefined,
                 detectedLang: undefined,
                 category: aiCategory,
                 urgency: aiUrgency,
@@ -292,6 +364,10 @@ export default function VictimIntake() {
               // stay on page and show confirmation
               setForm({ name: '', phone: '', text: '' })
               setOcrText('')
+              setPhotoDataUrl(null)
+              setAudioDataUrl(null)
+              setAudioTranscript('')
+              setAudioFile(null)
             } catch (err:any) {
               console.error('Submit failed', err)
               setError(err?.message || 'Submission failed. Please try again.')
@@ -305,6 +381,12 @@ export default function VictimIntake() {
             <textarea className="input min-h-[140px]" placeholder="Describe the situation and needs" value={form.text} onChange={e=>setForm({...form, text: e.target.value})} />
             {ocrText && <div className="text-xs opacity-70">OCR: {ocrText.slice(0,120)}{ocrText.length>120?'…':''}</div>}
             {error && <div className="text-sm text-danger">{error}</div>}
+            {(ocrText || audioTranscript) && (
+              <div className="text-[11px] opacity-70 space-y-1">
+                {ocrText && <div>Image OCR captured {ocrText.length} characters.</div>}
+                {audioTranscript && <div>Audio transcript captured {audioTranscript.length} characters.</div>}
+              </div>
+            )}
             <button className="button-primary self-start" type="submit" disabled={submitting || !confirmed}>
               <Send className="w-4 h-4" /> {submitting ? 'Sending…' : confirmed ? 'Send Request' : 'Confirm first above'}
             </button>

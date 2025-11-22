@@ -39,7 +39,7 @@ export default function VictimEmergencyContacts() {
           <h2 className="text-lg font-semibold mb-2">Disaster & relief</h2>
           <ul className="space-y-1 opacity-90">
             <li><span className="font-medium">Disaster management helpline:</span> 108</li>
-            <li><span className="font-medium">Flood / cyclone control room (local):</span> Check local district number</li>
+            <li><span className="font-medium">Flood / cyclone control room (local):</span> Contact your local district disaster management office (check official website or local authorities)</li>
           </ul>
         </section>
 

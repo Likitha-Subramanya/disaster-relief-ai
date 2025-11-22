@@ -11,6 +11,33 @@ self.addEventListener('install', (event) => {
   )
 })
 
+// Background sync: ask page clients to flush their outbox
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'rescue-sync') {
+    event.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'flush-outbox' })
+        })
+      })
+    )
+  }
+})
+
+// Also respond to a manual ping from the page to propagate a flush signal
+self.addEventListener('message', (event) => {
+  try {
+    const data = event.data || {}
+    if (data && data.type === 'sync-outbox') {
+      self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'flush-outbox' })
+        })
+      })
+    }
+  } catch {}
+})
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(keys.filter(k=> k!==CACHE_NAME).map(k=> caches.delete(k))))

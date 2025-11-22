@@ -75,7 +75,6 @@ export default function VictimLogin() {
             />
           </div>
           {error && <div className="text-xs text-danger">{error}</div>}
-          <div className="text-xs text-right text-slate-500">Forgot password? <span className="italic">Contact admin in this demo</span></div>
           <button type="submit" className="button-primary w-full mt-2">Continue</button>
         </form>
       </div>

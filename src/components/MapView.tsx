@@ -4,6 +4,7 @@ import L from 'leaflet'
 import { useEffect, useMemo, useState } from 'react'
 import type { Request, Resource } from '../models'
 import { getRequests, getResources } from '../store/db'
+import { getNgoUsers } from '../store/rescue'
 
 // Fix default icon paths in Vite
 // @ts-ignore
@@ -41,12 +42,21 @@ export default function MapView({ refreshSignal = 0 }: { refreshSignal?: number 
   useEffect(()=>{ (async()=>{
     setRequests(await getRequests())
     setResources(await getResources())
+    // also load NGOs for markers
+    setNgos(getNgoUsers())
   })() }, [refreshSignal])
 
   const center = useMemo(()=>{
     const r = requests.find(r=> r.location)
     return r?.location ? [r.location.lat, r.location.lng] as [number, number] : [20.5937, 78.9629] as [number, number]
   },[requests])
+
+  const [ngos, setNgos] = useState(() => getNgoUsers())
+
+  useEffect(() => {
+    const id = setInterval(() => setNgos(getNgoUsers()), 3000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <div className="h-[360px] md:h-[420px] rounded-lg overflow-hidden border border-white/10">
@@ -66,6 +76,32 @@ export default function MapView({ refreshSignal = 0 }: { refreshSignal?: number 
             </Popup>
           </Marker>
         ))}
+        {ngos.map(ngo => {
+          // Prefer stored lat/lng; fall back to parsing coordinates from location/address
+          const lat = typeof (ngo as any).lat === 'number' ? (ngo as any).lat : null
+          const lng = typeof (ngo as any).lng === 'number' ? (ngo as any).lng : null
+          let finalLat = lat as number | null
+          let finalLng = lng as number | null
+          if (finalLat === null || finalLng === null) {
+            const m = (ngo.location || ngo.address || '').toString().match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/)
+            if (m) {
+              finalLat = Number(m[1]); finalLng = Number(m[2])
+            }
+          }
+          if (finalLat === null || finalLng === null) return null
+          if (!Number.isFinite(finalLat) || !Number.isFinite(finalLng)) return null
+          return (
+            <Marker key={`ngo-${ngo.id}`} position={[finalLat, finalLng]} icon={greenIcon}>
+              <Popup>
+                <div className="text-sm">
+                  <div className="font-semibold">{ngo.name}</div>
+                  <div className="opacity-80 mt-1">{ngo.address || ngo.location}</div>
+                  <div className="mt-1">Services: {ngo.serviceType}</div>
+                </div>
+              </Popup>
+            </Marker>
+          )
+        })}
         {resources.map(res=> (
           <Marker key={res.id} position={[res.location.lat, res.location.lng]} icon={greenIcon}>
             <Popup>
